@@ -8,7 +8,7 @@ import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.util.Log;
+import android.os.AsyncTask;
 import android.view.Display;
 import android.view.GestureDetector;
 import android.view.Gravity;
@@ -20,7 +20,6 @@ import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.OvershootInterpolator;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -29,8 +28,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class StephenCurryService extends AccessibilityService {
+    ShootingTask thread = null;
     private FrameLayout mLayout;
-    private boolean continueShooting = false;
     private int mWidth;
     private int mHeight;
     private WindowManager mWindowManager;
@@ -48,23 +47,6 @@ public class StephenCurryService extends AccessibilityService {
     @Override
     public void onInterrupt() {
 
-    }
-
-    private void configureShotButton() {
-        final Button powerButton = (Button) mLayout.findViewById(R.id.shot);
-        powerButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (continueShooting) {
-                    powerButton.setText("STOP");
-                    continueShooting = false;
-                } else {
-                    continueShooting = true;
-                    startShoting();
-                    powerButton.setText("START");
-                }
-            }
-        });
     }
 
     private boolean shot() {
@@ -86,22 +68,6 @@ public class StephenCurryService extends AccessibilityService {
         return ball != null;
     }
 
-    private void startShoting() {
-        try {
-            for (int i = 0; i < 10 && continueShooting; i++) {
-                Thread.sleep(1500);
-                continueShooting &= shot();
-            }
-
-            while (continueShooting) {
-                Thread.sleep(3700);
-                continueShooting &= shot();
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
     private Rect findBall() {
         Deque<AccessibilityNodeInfo> deque = new ArrayDeque<>();
         deque.add(getRootInActiveWindow());
@@ -119,11 +85,9 @@ public class StephenCurryService extends AccessibilityService {
         return null;
     }
 
-
     @Override
     protected void onServiceConnected() {
         createOverlayLayout();
-//        configureShotButton();
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -141,8 +105,8 @@ public class StephenCurryService extends AccessibilityService {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         mWindowManager.addView(mChatHeadView, params);
 
-        mCloseLeft = (ImageView) mChatHeadView.findViewById(R.id.close_btn_left);
-        mCloseRight = (ImageView) mChatHeadView.findViewById(R.id.close_btn_right);
+        mCloseLeft = mChatHeadView.findViewById(R.id.close_btn_left);
+        mCloseRight = mChatHeadView.findViewById(R.id.close_btn_right);
         mPlay = mChatHeadView.findViewById(R.id.play_btn);
         mStop = mChatHeadView.findViewById(R.id.stop_btn);
         mCloseLeft.setOnClickListener(new View.OnClickListener() {
@@ -158,33 +122,7 @@ public class StephenCurryService extends AccessibilityService {
             }
         });
 
-        final GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-            @Override
-            public boolean onSingleTapConfirmed(MotionEvent e) {
-                Log.d("TAG", "onContextClick: ");
-                return super.onSingleTapConfirmed(e);
-            }
-        });
-
-//        mPlay.setOnTouchListener(new View.OnTouchListener() {
-//                                     @Override
-//                                     public boolean onTouch(View v, MotionEvent event) {
-//                                         Log.d("TAG", "onContextClick: ");
-//                                         gestureDetector.onTouchEvent(event);
-//                                         return false;
-//                                     }
-//                                 }
-//        );
-
-//        mStop.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                v.setVisibility(View.GONE);
-//                mPlay.setVisibility(View.VISIBLE);
-//            }
-//        });
-
-        final ImageView chatHeadImage = (ImageView) mChatHeadView.findViewById(R.id.chat_head_profile_iv);
+        final ImageView chatHeadImage = mChatHeadView.findViewById(R.id.chat_head_profile_iv);
 
         Display display = mWindowManager.getDefaultDisplay();
         final Point size = new Point();
@@ -259,6 +197,7 @@ public class StephenCurryService extends AccessibilityService {
             private float initialTouchX;
             private float initialTouchY;
             private int CLICK_ACTION_THRESHHOLD = 200;
+
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 flingGestureDetector.onTouchEvent(event);
@@ -270,13 +209,17 @@ public class StephenCurryService extends AccessibilityService {
                         initialTouchY = event.getRawY();
                         return true;
                     case MotionEvent.ACTION_UP:
-                        if (event.getEventTime() - event.getDownTime() < CLICK_ACTION_THRESHHOLD && Math.abs(event.getRawX() - initialTouchX) < 25 && Math.abs(event.getRawY() - initialTouchY) < 25) {
-                            if (mPlay.getVisibility() == View.GONE) {
-                                mPlay.setVisibility(View.VISIBLE);
-                                mStop.setVisibility(View.GONE);
-                            } else if (mPlay.getVisibility() == View.VISIBLE) {
+                        if (event.getEventTime() - event.getDownTime() < CLICK_ACTION_THRESHHOLD
+                                && Math.abs(event.getRawX() - initialTouchX) < 25
+                                && Math.abs(event.getRawY() - initialTouchY) < 25) {
+                            if (mPlay.getVisibility() == View.VISIBLE) {
                                 mPlay.setVisibility(View.GONE);
                                 mStop.setVisibility(View.VISIBLE);
+                                thread = new ShootingTask();
+                                thread.execute();
+                            } else if (mPlay.getVisibility() == View.GONE) {
+                                thread.stopShooting();
+                                thread = null;
                             }
                         }
                         int middle = mWidth / 2;
@@ -313,4 +256,37 @@ public class StephenCurryService extends AccessibilityService {
             }
         });
     }
+
+    class ShootingTask extends AsyncTask<Void, Void, Void> {
+
+        boolean continueShooting = true;
+
+        public void stopShooting() {
+            this.continueShooting = false;
+        }
+
+        @Override
+        protected Void doInBackground(Void... arg0) {
+            try {
+//                for (int i = 0; i < 10 && continueShooting; i++) {
+//                    Thread.sleep(1500);
+//                    continueShooting &= shot();
+//                }
+                while (continueShooting) {
+                    Thread.sleep(3700);
+                    continueShooting &= shot();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            mPlay.setVisibility(View.VISIBLE);
+            mStop.setVisibility(View.GONE);
+        }
+    }
+
 }
