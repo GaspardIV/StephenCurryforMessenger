@@ -258,21 +258,19 @@ public class StephenCurryService extends AccessibilityService {
             private int initialY;
             private float initialTouchX;
             private float initialTouchY;
-            private long lastTouchDown;
             private int CLICK_ACTION_THRESHHOLD = 200;
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 flingGestureDetector.onTouchEvent(event);
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        lastTouchDown = System.currentTimeMillis();
                         initialX = params.x;
                         initialY = params.y;
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
                         return true;
                     case MotionEvent.ACTION_UP:
-                        if (System.currentTimeMillis() - lastTouchDown < CLICK_ACTION_THRESHHOLD && Math.abs(event.getRawX() - initialTouchX) < 25 && Math.abs(event.getRawY() - initialTouchY) < 25) {
+                        if (event.getEventTime() - event.getDownTime() < CLICK_ACTION_THRESHHOLD && Math.abs(event.getRawX() - initialTouchX) < 25 && Math.abs(event.getRawY() - initialTouchY) < 25) {
                             if (mPlay.getVisibility() == View.GONE) {
                                 mPlay.setVisibility(View.VISIBLE);
                                 mStop.setVisibility(View.GONE);
