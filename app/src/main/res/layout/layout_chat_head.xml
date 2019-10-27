@@ -2,7 +2,7 @@
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="65dp"
+    android:layout_width="75dp"
     android:id="@+id/chat_head_root"
     android:layout_height="wrap_content"
     android:orientation="vertical">
@@ -10,18 +10,47 @@
     <!--Profile image for the chat head.-->
     <ImageView
         android:id="@+id/chat_head_profile_iv"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
+        android:layout_width="75dp"
+        android:layout_height="100dp"
         android:layout_marginTop="8dp"
-        android:src="@drawable/head_4"
+        android:adjustViewBounds="true"
+
+        android:src="@drawable/head_3"
         tools:ignore="ContentDescription"/>
+
+    <ImageView
+        android:id="@+id/stop_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:visibility="gone"
+        android:src="@drawable/ic_stop_black_24dp"
+        tools:ignore="ContentDescription"/>
+
+    <ImageView
+        android:id="@+id/play_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:scaleX="2.0"
+        android:scaleY="2.0"
+        android:src="@drawable/ic_play_arrow_black_24dp"
+        tools:ignore="ContentDescription" />
 
     <!--Close button-->
     <ImageView
-        android:id="@+id/close_btn"
+        android:id="@+id/close_btn_left"
         android:layout_width="26dp"
         android:layout_height="26dp"
-        android:layout_marginLeft="40dp"
+        android:src="@drawable/ic_close"
+        tools:ignore="ContentDescription"/>
+    <ImageView
+        android:id="@+id/close_btn_right"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_marginLeft="50dp"
+        android:visibility="gone"
         android:src="@drawable/ic_close"
         tools:ignore="ContentDescription"/>
 </RelativeLayout>

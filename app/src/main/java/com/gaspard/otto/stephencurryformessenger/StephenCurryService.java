@@ -29,12 +29,16 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class StephenCurryService extends AccessibilityService {
-    FrameLayout mLayout;
-    boolean continueShooting = false;
-    int mWidth;
-    int mHeight;
+    private FrameLayout mLayout;
+    private boolean continueShooting = false;
+    private int mWidth;
+    private int mHeight;
     private WindowManager mWindowManager;
     private View mChatHeadView;
+    private View mCloseLeft;
+    private View mCloseRight;
+    private View mPlay;
+    private View mStop;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -58,9 +62,7 @@ public class StephenCurryService extends AccessibilityService {
                     continueShooting = true;
                     startShoting();
                     powerButton.setText("START");
-
                 }
-
             }
         });
     }
@@ -69,7 +71,6 @@ public class StephenCurryService extends AccessibilityService {
         Rect screen = new Rect();
         getRootInActiveWindow().getBoundsInScreen(screen);
         Rect ball = findBall();
-        Log.d("aaaa", "shot: " + ball);
         Path swipePath = new Path();
         if (ball != null) {
             int ballMiddleX = ball.left + 216 / 2;
@@ -86,9 +87,7 @@ public class StephenCurryService extends AccessibilityService {
     }
 
     private void startShoting() {
-//        final Button powerButton = (Button) mLayout.findViewById(R.id.shot);
         try {
-
             for (int i = 0; i < 10 && continueShooting; i++) {
                 Thread.sleep(1500);
                 continueShooting &= shot();
@@ -120,20 +119,6 @@ public class StephenCurryService extends AccessibilityService {
         return null;
     }
 
-    private AccessibilityNodeInfo findScrollableNode(AccessibilityNodeInfo root) {
-        Deque<AccessibilityNodeInfo> deque = new ArrayDeque<>();
-        deque.add(root);
-        while (!deque.isEmpty()) {
-            AccessibilityNodeInfo node = deque.removeFirst();
-            if (node.getActionList().contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)) {
-                return node;
-            }
-            for (int i = 0; i < node.getChildCount(); i++) {
-                deque.addLast(node.getChild(i));
-            }
-        }
-        return null;
-    }
 
     @Override
     protected void onServiceConnected() {
@@ -144,8 +129,6 @@ public class StephenCurryService extends AccessibilityService {
     @SuppressLint("ClickableViewAccessibility")
     private void createOverlayLayout() {
         mChatHeadView = LayoutInflater.from(this).inflate(R.layout.layout_chat_head, null);
-
-        //Add the view to the window.
         final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -158,19 +141,50 @@ public class StephenCurryService extends AccessibilityService {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         mWindowManager.addView(mChatHeadView, params);
 
-        //Set the close button.
-        ImageView closeButton = (ImageView) mChatHeadView.findViewById(R.id.close_btn);
-        closeButton.setOnClickListener(new View.OnClickListener() {
+        mCloseLeft = (ImageView) mChatHeadView.findViewById(R.id.close_btn_left);
+        mCloseRight = (ImageView) mChatHeadView.findViewById(R.id.close_btn_right);
+        mPlay = mChatHeadView.findViewById(R.id.play_btn);
+        mStop = mChatHeadView.findViewById(R.id.stop_btn);
+        mCloseLeft.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                disableSelf();
+            }
+        });
+        mCloseRight.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 disableSelf();
             }
         });
 
+        final GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                Log.d("TAG", "onContextClick: ");
+                return super.onSingleTapConfirmed(e);
+            }
+        });
 
-        //Drag and move chat head using user's touch action.
+//        mPlay.setOnTouchListener(new View.OnTouchListener() {
+//                                     @Override
+//                                     public boolean onTouch(View v, MotionEvent event) {
+//                                         Log.d("TAG", "onContextClick: ");
+//                                         gestureDetector.onTouchEvent(event);
+//                                         return false;
+//                                     }
+//                                 }
+//        );
+
+//        mStop.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                v.setVisibility(View.GONE);
+//                mPlay.setVisibility(View.VISIBLE);
+//            }
+//        });
+
         final ImageView chatHeadImage = (ImageView) mChatHeadView.findViewById(R.id.chat_head_profile_iv);
-
 
         Display display = mWindowManager.getDefaultDisplay();
         final Point size = new Point();
@@ -188,115 +202,115 @@ public class StephenCurryService extends AccessibilityService {
             }
         });
 
-        final GestureDetector flingGestureDetector = new GestureDetector(this, new GestureDetector.OnGestureListener() {
-            @Override
-            public boolean onDown(MotionEvent e) {
-                return false;
-            }
-
-            @Override
-            public void onShowPress(MotionEvent e) {
-
-            }
-
-            @Override
-            public boolean onSingleTapUp(MotionEvent e) {
-                return false;
-            }
-
-            @Override
-            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-                return false;
-            }
-
-            @Override
-            public void onLongPress(MotionEvent e) {
-
-            }
-
-            @Override
-            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                Log.d("AA", "onFling: " + velocityX + " " + velocityY);
-                float xWall = velocityX >= 0 ? mWidth : 0;
-                float yWall = velocityY >= 0 ? mHeight : 0;
-
-                if (velocityX != 0) {
-                    ValueAnimator xValAnimator = ValueAnimator.ofFloat(params.x, xWall);
-                    int distanceX = (int) Math.abs(params.x - xWall);
-                    xValAnimator.setDuration((long) (4000 * distanceX / Math.abs(velocityX)));
-                    xValAnimator.setInterpolator(new OvershootInterpolator());
-                    xValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                        public void onAnimationUpdate(ValueAnimator animation) {
-                            params.x = (int) (float) animation.getAnimatedValue();
-                            mWindowManager.updateViewLayout(mChatHeadView, params);
-                        }
-                    });
-                    //                xValAnimator.start();
-                }
-
-                if (velocityY != 0) {
-                    ValueAnimator yValAnimator = ValueAnimator.ofFloat(params.y, yWall);
-                    float distanceY = params.y - xWall;
-                    yValAnimator.setDuration((long) Math.abs(4000 * distanceY / velocityY));
-                    yValAnimator.setInterpolator(new OvershootInterpolator());
-                    yValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                        public void onAnimationUpdate(ValueAnimator animation) {
-                            if (0 < params.x && params.x < mWidth) {
-                                params.y = /*params.y +*/ (int) (float) animation.getAnimatedValue();
-                                mWindowManager.updateViewLayout(mChatHeadView, params);
-                            } else {
-                                animation.cancel();
-                            }
-                        }
-                    });
-                    yValAnimator.start();
-                }
-                return false;
-            }
-        });
-
         chatHeadImage.setOnTouchListener(new View.OnTouchListener() {
+            final GestureDetector flingGestureDetector = new GestureDetector(StephenCurryService.this, new GestureDetector.OnGestureListener() {
+
+
+                @Override
+                public boolean onDown(MotionEvent e) {
+                    return false;
+                }
+
+                @Override
+                public void onShowPress(MotionEvent e) {
+
+                }
+
+                @Override
+                public boolean onSingleTapUp(MotionEvent e) {
+                    return false;
+                }
+
+                @Override
+                public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+                    return false;
+                }
+
+                @Override
+                public void onLongPress(MotionEvent e) {
+
+                }
+
+                @Override
+                public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                    float yWall = velocityY >= 0 ? mHeight : 0;
+                    if (velocityY != 0) {
+                        ValueAnimator yValAnimator = ValueAnimator.ofFloat(params.y, yWall);
+                        float distanceY = params.y - yWall;
+                        yValAnimator.setDuration((long) Math.abs(4000 * distanceY / velocityY));
+                        yValAnimator.setInterpolator(new OvershootInterpolator());
+                        yValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                            public void onAnimationUpdate(ValueAnimator animation) {
+                                if (0 < params.x && params.x < mWidth) {
+                                    params.y = (int) (float) animation.getAnimatedValue();
+                                    mWindowManager.updateViewLayout(mChatHeadView, params);
+                                } else {
+                                    animation.cancel();
+                                }
+                            }
+                        });
+                        yValAnimator.start();
+                    }
+                    return false;
+                }
+            });
             private int initialX;
             private int initialY;
             private float initialTouchX;
             private float initialTouchY;
-
+            private long lastTouchDown;
+            private int CLICK_ACTION_THRESHHOLD = 200;
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (!flingGestureDetector.onTouchEvent(event)) {
-                    switch (event.getAction()) {
-                        case MotionEvent.ACTION_DOWN:
-                            initialX = params.x;
-                            initialY = params.y;
-                            initialTouchX = event.getRawX();
-                            initialTouchY = event.getRawY();
-                            return true;
-                        case MotionEvent.ACTION_UP:
-                            int middle = mWidth / 2;
-                            float nearestXWall = params.x >= middle ? mWidth : 0;
-                            ValueAnimator va = ValueAnimator.ofFloat(params.x, nearestXWall);
-                            int mDuration = 400; //in millis
-                            va.setDuration(mDuration);
-//                        va.setInterpolator(new LinearInterpolator());
-//                        va.setInterpolator(new AccelerateInterpolator());
-//                        va.setInterpolator(new BounceInterpolator());
-                            va.setInterpolator(new OvershootInterpolator());
-//                        va.setInterpolator(new AnticipateOvershootInterpolator());
-                            va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                                public void onAnimationUpdate(ValueAnimator animation) {
-                                    params.x = (int) (float) animation.getAnimatedValue();
-                                    mWindowManager.updateViewLayout(mChatHeadView, params);
+                flingGestureDetector.onTouchEvent(event);
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        lastTouchDown = System.currentTimeMillis();
+                        initialX = params.x;
+                        initialY = params.y;
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        if (System.currentTimeMillis() - lastTouchDown < CLICK_ACTION_THRESHHOLD && Math.abs(event.getRawX() - initialTouchX) < 25 && Math.abs(event.getRawY() - initialTouchY) < 25) {
+                            if (mPlay.getVisibility() == View.GONE) {
+                                mPlay.setVisibility(View.VISIBLE);
+                                mStop.setVisibility(View.GONE);
+                            } else if (mPlay.getVisibility() == View.VISIBLE) {
+                                mPlay.setVisibility(View.GONE);
+                                mStop.setVisibility(View.VISIBLE);
+                            }
+                        }
+                        int middle = mWidth / 2;
+                        float nearestXWall = params.x >= middle ? mWidth : 0;
+                        ValueAnimator va = ValueAnimator.ofFloat(params.x, nearestXWall);
+                        int mDuration = 500;
+                        va.setDuration(mDuration);
+                        va.setInterpolator(new OvershootInterpolator());
+                        va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                            public void onAnimationUpdate(ValueAnimator animation) {
+                                params.x = (int) (float) animation.getAnimatedValue();
+                                mWindowManager.updateViewLayout(mChatHeadView, params);
+                                if (params.x == 0) {
+                                    mCloseLeft.setVisibility(View.VISIBLE);
+                                    mCloseRight.setVisibility(View.GONE);
+                                } else if (params.x == mWidth) {
+                                    mCloseLeft.setVisibility(View.GONE);
+                                    mCloseRight.setVisibility(View.VISIBLE);
                                 }
-                            });
-                            va.start();
-                            return true;
-                        case MotionEvent.ACTION_MOVE:
-                            params.x = initialX + (int) (event.getRawX() - initialTouchX);
-                            params.y = initialY + (int) (event.getRawY() - initialTouchY);
-                            mWindowManager.updateViewLayout(mChatHeadView, params);
-                            return true;
-                    }
+                            }
+                        });
+                        va.start();
+
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        params.x = initialX + (int) (event.getRawX() - initialTouchX);
+                        params.y = initialY + (int) (event.getRawY() - initialTouchY);
+                        mWindowManager.updateViewLayout(mChatHeadView, params);
+
+                        return true;
                 }
+
                 return false;
             }
         });
