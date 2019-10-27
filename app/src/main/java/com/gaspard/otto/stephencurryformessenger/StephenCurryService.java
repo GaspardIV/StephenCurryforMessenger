@@ -216,34 +216,42 @@ public class StephenCurryService extends AccessibilityService {
 
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                Log.d("AA", "onFling: "+velocityX + " " + velocityY);
-//                velocityX /= 500;
-//                velocityY /= 500;
+                Log.d("AA", "onFling: " + velocityX + " " + velocityY);
                 float xWall = velocityX >= 0 ? mWidth : 0;
                 float yWall = velocityY >= 0 ? mHeight : 0;
-                ValueAnimator xValAnimator = ValueAnimator.ofFloat(params.x, xWall);
-                int distanceX = (int) Math.abs(params.x - xWall);
-                xValAnimator.setDuration((long) (2000*distanceX/Math.abs(velocityX)));
-                xValAnimator.setInterpolator(new OvershootInterpolator());
-                xValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                    public void onAnimationUpdate(ValueAnimator animation) {
-                        params.x = (int) (float) animation.getAnimatedValue();
-                        mWindowManager.updateViewLayout(mChatHeadView, params);
-                    }
-                });
-                ValueAnimator yValAnimator = ValueAnimator.ofFloat(params.y, yWall);
-                int distanceY = (int) Math.abs(params.y - xWall);
-                yValAnimator.setDuration((long) (2000*distanceY/Math.abs(velocityY)));
-                yValAnimator.setInterpolator(new OvershootInterpolator());
-                yValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                    public void onAnimationUpdate(ValueAnimator animation) {
-                        params.y = (int) (float) animation.getAnimatedValue();
-                        mWindowManager.updateViewLayout(mChatHeadView, params);
-                    }
-                });
-                yValAnimator.start();
-                xValAnimator.start();
-                return true;
+
+                if (velocityX != 0) {
+                    ValueAnimator xValAnimator = ValueAnimator.ofFloat(params.x, xWall);
+                    int distanceX = (int) Math.abs(params.x - xWall);
+                    xValAnimator.setDuration((long) (4000 * distanceX / Math.abs(velocityX)));
+                    xValAnimator.setInterpolator(new OvershootInterpolator());
+                    xValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                        public void onAnimationUpdate(ValueAnimator animation) {
+                            params.x = (int) (float) animation.getAnimatedValue();
+                            mWindowManager.updateViewLayout(mChatHeadView, params);
+                        }
+                    });
+                    //                xValAnimator.start();
+                }
+
+                if (velocityY != 0) {
+                    ValueAnimator yValAnimator = ValueAnimator.ofFloat(params.y, yWall);
+                    float distanceY = params.y - xWall;
+                    yValAnimator.setDuration((long) Math.abs(4000 * distanceY / velocityY));
+                    yValAnimator.setInterpolator(new OvershootInterpolator());
+                    yValAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                        public void onAnimationUpdate(ValueAnimator animation) {
+                            if (0 < params.x && params.x < mWidth) {
+                                params.y = /*params.y +*/ (int) (float) animation.getAnimatedValue();
+                                mWindowManager.updateViewLayout(mChatHeadView, params);
+                            } else {
+                                animation.cancel();
+                            }
+                        }
+                    });
+                    yValAnimator.start();
+                }
+                return false;
             }
         });
 
@@ -255,7 +263,7 @@ public class StephenCurryService extends AccessibilityService {
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (!flingGestureDetector.onTouchEvent(event)){
+                if (!flingGestureDetector.onTouchEvent(event)) {
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
                             initialX = params.x;
